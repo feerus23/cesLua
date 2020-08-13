@@ -9,5 +9,5 @@
 400; # vehicle_id = 400;
 
 1, 0, 1; # num_of_config = 1, right_headlight_state = 0, left_headlight_state = 1;
-400,200,400,600; # right headlight switches
-600,200,400,200; # left headlight switches
+400,200,400; # right headlight switches
+400,200,400; # left headlight switches

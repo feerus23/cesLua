@@ -1,8 +1,8 @@
 script_name('Configurable Emergency Stroboscope <Lights>')
 script_author('Fuexie')
-script_version('0.751')
+script_version('0.9')
 script_url('t.me/fuexiesworks')
-script_version_number(0751)
+script_version_number(090)
 
 local scr = thisScript()
 
@@ -139,6 +139,78 @@ function showLocMes(mes, col)
   end
 end
 
+function intb(var)
+  if var == 0 then return 1 else return 0 end
+end
+
+------------------------ (⁄ ⁄•⁄ω⁄•⁄ ⁄) ------------------------
+-- Вся херня с сиренами
+--
+local siren = { thread = {  }, status = { } }
+
+function siren:setData(ch, cid)
+  local vid = getCarModel(ch)
+
+  self.data = {
+    cHan = ch,
+    vehId = vid,
+    cNum = cid,
+    [0] = {
+      s = ccd[vid][cid].right_state,
+      i = ccd[vid][cid].right_switches
+    },
+    [1] = {
+      s = ccd[vid][cid].left_state,
+      i = ccd[vid][cid].left_switches
+    }
+  }
+end
+
+function siren:resetData(ch, cid)
+  if self.thread[0]:status() == 'runing' then
+    for i=0,1 do self.thread[i]:terminate(); self.thread[i] = nil end
+  end
+  self.data = nil
+  self:setData(ch, cid)
+end
+
+function siren:togOn()
+  if self.thread[0] then
+    if self.thread[0]:status() == 'dead' then
+      for i = 0, 1 do
+        self.thread[i]:run(self, i)
+      end
+    end
+  else
+    for i = 0, 1 do
+      self.thread[i] = lua_thread.create(self.process, self, i)
+      self.status[0], self.status[1] = true, true
+    end
+  end
+end
+
+function siren:togOff()
+  if table.len(self.thread) == 2 then
+    for i = 0, 1 do
+      self.thread[i]:terminate()
+    end
+  end
+end
+
+function siren:process(face)
+  local shit = self.data
+  local ptr = getCarPointer(shit.cHan) + 1440
+  local status = shit[face].s
+
+  while true do
+    for _, v in ipairs(shit[face].i) do
+      callMethod(7086336, ptr, 2, 0, face, status)
+      status = intb(status)
+      wait(v)
+    end
+  end
+end
+
 ------------------------ (⁄ ⁄•⁄ω⁄•⁄ ⁄) ------------------------
 -- Загрузка конфигураций
 --
@@ -265,19 +337,25 @@ end
 function registerCommands()
   for k, v in pairs(_COMMANDS) do
     sampRegisterChatCommand(k, v[1])
+    if v[0] then
+      for _, w in ipairs(v[0]) do
+        sampRegisterChatCommand(w, v[1])
+      end
+    end
   end
 end
 
 local prfx = 'ces'
 _COMMANDS = {
   [prfx] = {
+    [0] = { prfx..'/help' },
     [1] = function (arg)
       if not isVarEmpty(arg) then
-        if _COMMANDS[arg] or _COMMANDS[prfx..arg] or _COMMANDS[prfx..'/'..arg] then
-          showLocMes(_COMMANDS[arg][2])
+        if _COMMANDS[prfx..'/'..arg] then
+          showLocMes(_COMMANDS[prfx..'/'..arg][2])
         else
           showLocMes("CES*: You entered an incorrect command, or this command doesn't exist")
-          showLocMes("CES*: Example of a correctly specified command: /ces start")
+          showLocMes("CES*: Example of a correctly specified command: /ces start or /ces/help start")
         end
       else
         for _, v in pairs(_COMMANDS) do
@@ -285,13 +363,50 @@ _COMMANDS = {
         end
       end
     end,
-    [2] = "CES*: Use /"..prfx.." [command]: to get full list of commands"
+    [2] = "CES*: Use /"..prfx.." or /ces/help [command] -: to get full list of commands"
   },
   [prfx..'/tst'] = {
     [1] = function (arg)
       print(table.len(ccd))
       --showLocMes('Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum condimentum dolor, eget urna porta, a facilisis neque viverra. Pellentesque tempus lectus feugiat tempus placerat.')
     end,
-    [2] = "CES*: Use /"..prfx.." [command]: to get full list of commands"
+    [2] = "CES*: Use /"..prfx.."/tst -: prikolbasina"
+  },
+  [prfx..'/start'] = {
+    [0] = { prfx..'/activate' },
+    [1] = function (c)
+      if isCharInAnyCar(PLAYER_PED) then
+        if isVarEmpty(c) then c = 1 else c = tonumber(c) end
+
+        local car = storeCarCharIsInNoSave(PLAYER_PED)
+
+        --print(car, getCarModel(car))
+        if not siren.data or getCarModel(car) ~= siren.data.vehId or cid ~= siren.data.cNum then siren:setData(car, c) end
+
+        forceCarLights(storeCarCharIsInNoSave(PLAYER_PED), 0)
+        siren:togOn()
+
+        print(siren.status[0], siren.status[0])
+      else
+        showLocMes("CES*: You're not in the car")
+      end
+    end,
+    [2] = "CES*: Use /"..prfx.."/start or /"..prfx.."/activate [config-number] -:"
+  },
+  [prfx..'/stop'] = {
+    [0] = { prfx..'/deactivate' },
+    [1] = function ()
+      if isCharInAnyCar(PLAYER_PED) then
+        if table.len(siren.thread) == 2 then
+
+          if siren.status[0] and siren.status[1] then siren:togOff() end
+          forceCarLights(storeCarCharIsInNoSave(PLAYER_PED), 0)
+
+        end
+      else
+        showLocMes("CES*: You're not in the car")
+      end
+    end,
+    [2] = "CES*: Use /"..prfx.."/stop or /"..prfx.."/deactivate -"
   }
 }
