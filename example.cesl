@@ -1,0 +1,13 @@
+#   Configuration example for CESL script
+#
+# vehicle_id; - just vehicle id...
+#
+# num_of_config, right_headlight_state, left_headlight_state; - state - the state of the headlights when the strobe lights are turned on
+# rhl_time_interval_1, rhl_time_interval_2, ... rhl_time_interval_N; - right headlight time intervals
+# lhl_time_interval_1, lhl_time_interval_2, ... lhl_time_interval_N; - left headlight time intervals
+
+400; # vehicle_id = 400;
+
+1, 0, 1; # num_of_config = 1, right_headlight_state = 0, left_headlight_state = 1;
+400,200,400,600; # right headlight switches
+600,200,400,200; # left headlight switches
